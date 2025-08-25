@@ -1,269 +1,665 @@
-<!DOCTYPE html>
-<html lang="ko" class="scroll-smooth">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI와 함께하는 미래 설계: SDGs 사회문제 해결 기반 진로 탐구 프로젝트</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', 'Noto Sans KR', sans-serif;
-            background-color: #0f172a; /* slate-900 */
-            color: #f8fafc; /* slate-50 */
-        }
-        .step-content {
-            display: none;
-            transition: all 0.3s ease-in-out;
-        }
-        .step-card.active .step-content {
-            display: block;
-        }
-        .step-card.active .chevron {
-            transform: rotate(180deg);
-        }
-        .prompt-box {
-            background-color: #1e293b; /* slate-800 */
-            border-left: 4px solid #22d3ee; /* cyan-400 */
-            padding: 1rem;
-            border-radius: 0.5rem;
-            font-family: 'monospace';
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .glassmorphism {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-    </style>
-</head>
-<body class="antialiased">
+import React, { useState, useEffect, useRef } from 'react';
+import { Sparkles, Heart, Gift, CircleDashed, Award } from 'lucide-react';
+import * as Tone from 'tone'; // Tone.js 임포트
 
-    <!-- Header -->
-    <header class="bg-slate-900/80 backdrop-blur-lg sticky top-0 z-50 border-b border-slate-800">
-        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="text-2xl font-bold text-white">
-                <span class="text-cyan-400">AI</span> 진로탐구 프로젝트
-            </div>
-            <div class="hidden md:flex space-x-6 text-slate-300">
-                <a href="#overview" class="hover:text-cyan-400 transition">개요</a>
-                <a href="#roadmap" class="hover:text-cyan-400 transition">로드맵</a>
-                <a href="#portfolio" class="hover:text-cyan-400 transition">포트폴리오</a>
-            </div>
-        </nav>
-    </header>
+// Tone.js 오디오 컨텍스트를 시작하는 유틸리티 함수
+// 사용자 상호작용이 있어야 오디오 컨텍스트가 시작됩니다.
+const startAudioContext = async () => {
+  if (Tone.context.state !== 'running') {
+    await Tone.start();
+  }
+};
 
-    <!-- Main Content -->
-    <main class="container mx-auto px-6 py-12 md:py-20">
+// 상품 입력 컴포넌트
+const ProductInput = ({ product, index, onUpdate, onDelete, playClickSound }) => (
+  <div className="flex items-center space-x-2 p-2 bg-pink-50 rounded-lg shadow-sm w-full">
+    <input
+      type="text"
+      placeholder="상품명"
+      value={product.name}
+      onChange={(e) => onUpdate(index, 'name', e.target.value)}
+      className="p-2 border border-pink-200 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300 flex-grow"
+    />
+    <input
+      type="number"
+      placeholder="개수"
+      value={product.quantity}
+      onChange={(e) => onUpdate(index, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+      min="1"
+      className="p-2 border border-pink-200 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300 w-20 text-center"
+    />
+    <button
+      onClick={() => {
+        onDelete(index);
+        playClickSound();
+      }}
+      className="p-2 bg-red-300 text-white rounded-md hover:bg-red-400 transition-colors duration-200 shadow-md"
+      aria-label="상품 삭제"
+    >
+      <Heart size={20} fill="white" />
+    </button>
+  </div>
+);
 
-        <!-- Overview Section -->
-        <section id="overview" class="text-center mb-20 md:mb-32">
-            <h1 class="text-4xl md:text-6xl font-extrabold mb-4 leading-tight">
-                <span class="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-violet-500">
-                    AI와 함께하는 미래 설계
-                </span>
-            </h1>
-            <p class="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto mb-8">
-                '지식 소비자'에서 '가치 창조자'로. 희망 직업의 관점에서 사회 문제를 발견하고 AI를 활용해 창의적인 해결책을 제시하는 심층 탐구 활동입니다.
-            </p>
-            <a href="#roadmap" class="bg-cyan-500 text-white font-bold py-3 px-8 rounded-full hover:bg-cyan-600 transition-transform transform hover:scale-105">
-                프로젝트 시작하기
-            </a>
-        </section>
+// 상품 및 참가자 입력 폼 컴포넌트
+const InputForm = ({ onStartDraw, playClickSound }) => {
+  const [products, setProducts] = useState([{ name: '', quantity: 1 }]);
+  const [totalParticipants, setTotalParticipants] = useState(1);
+  const [errorMessage, setErrorMessage] = useState('');
 
-        <!-- Roadmap Section -->
-        <section id="roadmap" class="mb-20 md:mb-32">
-            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">🚀 SDGs 프로젝트 실행 로드맵 (4-Step Guide)</h2>
-            
-            <div class="space-y-6 max-w-4xl mx-auto">
-                <!-- Step 1 -->
-                <div class="step-card glassmorphism rounded-xl overflow-hidden" data-step="1">
-                    <div class="step-header p-6 cursor-pointer flex justify-between items-center">
-                        <h3 class="text-xl md:text-2xl font-bold"><span class="text-cyan-400">Step 1.</span> 문제 정의 및 진로 연계</h3>
-                        <svg class="chevron w-6 h-6 text-slate-400 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                        </svg>
-                    </div>
-                    <div class="step-content px-6 pb-6 border-t border-slate-700">
-                        <p class="mt-4 text-slate-300 mb-6">탐구의 깊이는 '좋은 질문'에서 시작됩니다. 나의 경험과 맞닿아 있는 구체적인 문제를 발견하는 것이 중요합니다.</p>
-                        <div class="bg-slate-800 p-4 rounded-lg mb-6">
-                            <h4 class="font-semibold mb-2 text-white">🔍 '나의 일상'에서 탐구 주제 발견하기</h4>
-                            <ul class="list-disc list-inside text-slate-400 space-y-1">
-                                <li><b>학교:</b> 비효율적인 학교 공지 시스템, 학생 정신건강 문제, 교내 유휴 공간 활용 방안</li>
-                                <li><b>마을:</b> 지역 상권 활성화, 쓰레기 무단 투기, 어르신들의 디지털 소외</li>
-                                <li><b>사회:</b> 1인 가구를 위한 안전 시스템, 가짜뉴스 판별, 청소년의 정치적 무관심</li>
-                            </ul>
-                        </div>
-                        <div class="bg-slate-800 p-4 rounded-lg">
-                            <h4 class="font-semibold mb-2 text-white">💡 AI 활용 심화 (Gemini): 문제 구체화 및 직업 매칭</h4>
-                            <p class="text-slate-400 mb-3">단순히 직업을 나열해달라고 요청하는 것을 넘어, 문제의 구조를 파악하고 다양한 관점을 얻는 데 AI를 활용하세요.</p>
-                            <p class="text-slate-300 font-semibold mb-2">학생 프롬프트 예시:</p>
-                            <div class="prompt-box text-sm">"우리 동네 상권이 침체되는 문제를 '도시재생 전문가'와 '빅데이터 분석가'의 관점에서 각각 분석하고, 각 직업이 어떤 핵심적인 역할을 수행할 수 있는지 알려줘. 문제의 원인을 경제적, 사회적, 문화적 측면으로 나누어 설명해 줘."</div>
-                        </div>
-                    </div>
-                </div>
+  const addProduct = () => {
+    setProducts([...products, { name: '', quantity: 1 }]);
+    playClickSound();
+  };
 
-                <!-- Step 2 -->
-                <div class="step-card glassmorphism rounded-xl overflow-hidden" data-step="2">
-                    <div class="step-header p-6 cursor-pointer flex justify-between items-center">
-                        <h3 class="text-xl md:text-2xl font-bold"><span class="text-cyan-400">Step 2.</span> 심층 탐구 및 지식 재구성</h3>
-                        <svg class="chevron w-6 h-6 text-slate-400 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                        </svg>
-                    </div>
-                    <div class="step-content px-6 pb-6 border-t border-slate-700">
-                        <p class="mt-4 text-slate-300 mb-6">신뢰도 높은 정보를 수집하고 자신만의 지식 체계로 만드는 과정입니다. NotebookLM은 여러분의 '두 번째 뇌'가 되어줄 것입니다.</p>
-                        <div class="bg-slate-800 p-4 rounded-lg mb-6">
-                            <h4 class="font-semibold mb-2 text-white">📚 신뢰도 높은 소스(Source) 기반 정보 수집</h4>
-                            <p class="text-slate-400">RISS, DBpia (학술논문), KDI (국책연구보고서), 통계청 KOSIS (국가통계), 전문가 인터뷰 기사 등 5개 이상의 자료를 수집합니다.</p>
-                        </div>
-                        <div class="bg-slate-800 p-4 rounded-lg">
-                            <h4 class="font-semibold mb-2 text-white">💡 AI 활용 심화 (NotebookLM): 단순 요약을 넘어 '지식의 연결'로</h4>
-                            <p class="text-slate-400 mb-3">수집한 모든 자료를 노트북LM에 업로드하여 '나만의 데이터베이스'를 구축하고, 다음과 같이 활용해보세요.</p>
-                            <ol class="list-decimal list-inside text-slate-300 space-y-2">
-                                <li><b>관점 비교 분석:</b> "자료 A와 B에서 문제의 원인을 어떻게 다르게 진단하는지 비교 분석해 줘."</li>
-                                <li><b>개념 재정의:</b> "모든 자료를 종합하여 '성공적인 도시재생'의 핵심 요소를 5가지 키워드로 정의하고 사례를 찾아줘."</li>
-                                <li><b>탐구 일지 작성:</b> 노트 기능을 활용해 질문, 반론, 아이디어를 기록하며 비판적 사고 과정을 남기세요.</li>
-                            </ol>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Step 3 -->
-                <div class="step-card glassmorphism rounded-xl overflow-hidden" data-step="3">
-                    <div class="step-header p-6 cursor-pointer flex justify-between items-center">
-                        <h3 class="text-xl md:text-2xl font-bold"><span class="text-cyan-400">Step 3.</span> 솔루션 기획 및 구체화</h3>
-                        <svg class="chevron w-6 h-6 text-slate-400 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                        </svg>
-                    </div>
-                    <div class="step-content px-6 pb-6 border-t border-slate-700">
-                        <p class="mt-4 text-slate-300 mb-6">최종 결과물은 단순 보고서가 아닌, 실행 가능성을 담은 '프로젝트 제안서' 입니다.</p>
-                        <div class="bg-slate-800 p-4 rounded-lg mb-6">
-                            <h4 class="font-semibold mb-2 text-white">💡 AI 활용 심화 (Gemini): 아이디어의 논리적 구조화 및 고도화</h4>
-                             <p class="text-slate-300 font-semibold mb-2">학생 프롬프트 예시:</p>
-                            <div class="prompt-box text-sm">"나는 'UX/UI 기획자'의 관점에서 지역 어르신들의 디지털 소외 문제를 해결하기 위한 '키오스크 연습 앱'을 제안하려고 해. 이 제안서에 들어갈 [문제 제기 - 목표 설정 - 타겟 분석 - 핵심 기능 - 기대 효과 - 잠재적 리스크 및 해결 방안] 의 목차를 구성하고, 각 항목에 들어갈 핵심 내용을 초안으로 작성해 줘."</div>
-                        </div>
-                        <div class="bg-slate-800 p-4 rounded-lg">
-                            <h4 class="font-semibold mb-2 text-white">📋 결과물 형태 심화 (택 1)</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                                    <h5 class="font-bold text-cyan-400">정책 제안서</h5>
-                                    <p class="text-sm text-slate-400">문제 현황, 제안 정책, 필요 예산, 기대 편익 분석 포함</p>
-                                </div>
-                                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                                    <h5 class="font-bold text-cyan-400">비즈니스 모델 기획서</h5>
-                                    <p class="text-sm text-slate-400">시장 분석, 타겟 고객, 수익 구조, 마케팅 전략, SWOT 분석 포함</p>
-                                </div>
-                                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                                    <h5 class="font-bold text-cyan-400">앱/웹 서비스 상세 기획서</h5>
-                                    <p class="text-sm text-slate-400">서비스 목표, 페르소나, 유저 플로우, 와이어프레임 스케치 포함</p>
-                                </div>
-                                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                                    <h5 class="font-bold text-cyan-400">캠페인 기획안</h5>
-                                    <p class="text-sm text-slate-400">캠페인 목표, 슬로건, 실행 전략, 성과 측정 지표(KPI) 설정 포함</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+  const updateProduct = (index, field, value) => {
+    const newProducts = [...products];
+    newProducts[index][field] = value;
+    setProducts(newProducts);
+  };
 
-                <!-- Step 4 -->
-                <div class="step-card glassmorphism rounded-xl overflow-hidden" data-step="4">
-                    <div class="step-header p-6 cursor-pointer flex justify-between items-center">
-                        <h3 class="text-xl md:text-2xl font-bold"><span class="text-cyan-400">Step 4.</span> 발표, 피드백 및 성찰</h3>
-                        <svg class="chevron w-6 h-6 text-slate-400 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                        </svg>
-                    </div>
-                    <div class="step-content px-6 pb-6 border-t border-slate-700">
-                        <p class="mt-4 text-slate-300 mb-6">자신의 탐구 과정과 결과를 공유하고, 동료들의 건설적인 피드백을 통해 프로젝트를 완성하는 단계입니다.</p>
-                        <div class="bg-slate-800 p-4 rounded-lg">
-                             <h4 class="font-semibold mb-2 text-white">🎤 '청년 소셜벤처 IR 데이' 컨셉의 최종 발표</h4>
-                             <p class="text-slate-400 mb-3">나의 아이디어가 왜 사회적으로 필요하고 가치 있는지 투자자를 설득하듯 발표합니다. 발표에는 다음 4가지 요소를 반드시 포함하세요.</p>
-                             <ul class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
-                                 <li class="bg-slate-900 p-3 rounded-md"><span class="font-bold text-violet-400">Problem:</span> 문제 정의</li>
-                                 <li class="bg-slate-900 p-3 rounded-md"><span class="font-bold text-violet-400">Solution:</span> 해결책 제시</li>
-                                 <li class="bg-slate-900 p-3 rounded-md"><span class="font-bold text-violet-400">Process:</span> AI 활용 과정</li>
-                                 <li class="bg-slate-900 p-3 rounded-md"><span class="font-bold text-violet-400">Impact:</span> 기대 효과</li>
-                             </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
+  const deleteProduct = (index) => {
+    const newProducts = products.filter((_, i) => i !== index);
+    setProducts(newProducts.length > 0 ? newProducts : [{ name: '', quantity: 1 }]);
+    playClickSound();
+  };
 
-        <!-- Portfolio Section -->
-        <section id="portfolio">
-            <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">✨ 학생부와 포트폴리오로 연결하기</h2>
-            <p class="text-center text-slate-300 max-w-3xl mx-auto mb-12">
-                이 프로젝트는 여러분의 역량을 보여줄 수 있는 최고의 소재입니다. 다음 키워드를 중심으로 자신의 활동을 어필하세요.
-            </p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <div class="glassmorphism p-6 rounded-xl text-center">
-                    <div class="text-4xl mb-4">🧭</div>
-                    <h4 class="text-xl font-bold mb-2 text-white">자기주도성</h4>
-                    <p class="text-slate-400">스스로 사회 문제를 발견하고 탐구 계획을 수립하며 프로젝트를 완성한 과정</p>
-                </div>
-                <div class="glassmorphism p-6 rounded-xl text-center">
-                    <div class="text-4xl mb-4">🧠</div>
-                    <h4 class="text-xl font-bold mb-2 text-white">탐구 역량</h4>
-                    <p class="text-slate-400">다양한 소스를 비교/분석하고 AI와의 상호작용으로 새로운 관점을 도출하는 능력</p>
-                </div>
-                <div class="glassmorphism p-6 rounded-xl text-center">
-                    <div class="text-4xl mb-4">💡</div>
-                    <h4 class="text-xl font-bold mb-2 text-white">창의적 문제 해결</h4>
-                    <p class="text-slate-400">새로운 아이디어를 제시하고 체계적인 제안서 형태로 구체화하는 역량</p>
-                </div>
-                <div class="glassmorphism p-6 rounded-xl text-center">
-                    <div class="text-4xl mb-4">🎯</div>
-                    <h4 class="text-xl font-bold mb-2 text-white">전공 적합성</h4>
-                    <p class="text-slate-400">희망 전공 관련 사회 문제에 대한 깊은 관심과 이해도를 보여주는 경험</p>
-                </div>
-                <div class="glassmorphism p-6 rounded-xl text-center">
-                    <div class="text-4xl mb-4">🤝</div>
-                    <h4 class="text-xl font-bold mb-2 text-white">공동체 의식</h4>
-                    <p class="text-slate-400">우리 사회의 긍정적 변화에 기여하고자 하는 고민과 실천적 노력</p>
-                </div>
-            </div>
-        </section>
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    playClickSound();
+    setErrorMessage('');
 
-    </main>
+    const validProducts = products.filter(p => p.name.trim() !== '' && p.quantity > 0);
+    if (validProducts.length === 0) {
+      setErrorMessage('적어도 하나의 상품을 입력해주세요!');
+      return;
+    }
 
-    <!-- Footer -->
-    <footer class="bg-slate-900 border-t border-slate-800 mt-20">
-        <div class="container mx-auto px-6 py-8 text-center text-slate-400">
-            <p>&copy; 2024 AI-Powered Career Exploration Project. All rights reserved.</p>
+    if (totalParticipants < 1) {
+        setErrorMessage('참가자 수는 1명 이상이어야 합니다!');
+        return;
+    }
+
+    onStartDraw(validProducts, totalParticipants);
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-3xl shadow-xl border-4 border-pink-200 max-w-lg mx-auto transform hover:scale-105 transition-transform duration-300">
+      <h2 className="text-3xl font-bold text-center text-pink-500 mb-6 flex items-center justify-center gap-2">
+        <Sparkles className="text-yellow-400" size={32} />
+        룰렛 뽑기 설정
+        <Sparkles className="text-yellow-400" size={32} />
+      </h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-3">
+          <label className="block text-xl font-semibold text-purple-600">상품 목록:</label>
+          {products.map((product, index) => (
+            <ProductInput
+              key={index}
+              product={product}
+              index={index}
+              onUpdate={updateProduct}
+              onDelete={deleteProduct}
+              playClickSound={playClickSound}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={addProduct}
+            className="w-full py-3 px-4 bg-purple-300 text-white font-bold rounded-xl hover:bg-purple-400 transition-colors duration-200 shadow-lg flex items-center justify-center gap-2"
+          >
+            <Gift size={20} /> 상품 추가
+          </button>
         </div>
-    </footer>
 
-    <script>
-        // JavaScript for accordion interaction
-        const stepCards = document.querySelectorAll('.step-card');
+        <div>
+          <label htmlFor="participants" className="block text-xl font-semibold text-purple-600 mb-2">
+            전체 참가자 수:
+          </label>
+          <input
+            id="participants"
+            type="number"
+            value={totalParticipants}
+            onChange={(e) => setTotalParticipants(Math.max(1, parseInt(e.target.value) || 1))}
+            min="1"
+            className="w-full p-3 border-4 border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-300 text-lg"
+          />
+        </div>
 
-        stepCards.forEach(card => {
-            const header = card.querySelector('.step-header');
-            header.addEventListener('click', () => {
-                // Close all other cards
-                stepCards.forEach(otherCard => {
-                    if (otherCard !== card && otherCard.classList.contains('active')) {
-                        otherCard.classList.remove('active');
-                    }
-                });
-                // Toggle the clicked card
-                card.classList.toggle('active');
-            });
-        });
+        {errorMessage && (
+          <p className="text-red-500 text-center font-semibold text-sm">{errorMessage}</p>
+        )}
 
-        // Auto-open the first step by default
-        if (stepCards.length > 0) {
-            stepCards[0].classList.add('active');
+        <button
+          type="submit"
+          className="w-full py-4 px-6 bg-pink-500 text-white text-2xl font-extrabold rounded-full hover:bg-pink-600 transition-colors duration-300 shadow-2xl transform hover:scale-105"
+        >
+          추첨 시작!
+        </button>
+      </form>
+    </div>
+  );
+};
+
+// 룰렛 컴포넌트
+const Roulette = ({ prizes, winningPrizeName, isSpinning, onSpinComplete, isDrawingAll }) => {
+  const [displayPrize, setDisplayPrize] = useState('');
+  const animationDuration = 3000; // 3초 동안 룰렛 애니메이션 진행
+
+  useEffect(() => {
+    let spinInterval;
+    if (isSpinning && !isDrawingAll) { // 전체 추첨 모드에서는 룰렛 애니메이션 스킵
+      spinInterval = setInterval(() => {
+        setDisplayPrize(prizes[Math.floor(Math.random() * prizes.length)] || '꽝'); // '꽝'으로 표시
+      }, 100);
+
+      setTimeout(() => {
+        clearInterval(spinInterval);
+        setDisplayPrize(winningPrizeName);
+        onSpinComplete();
+      }, animationDuration);
+    } else if (!isSpinning && displayPrize === '') {
+      setDisplayPrize('룰렛 대기중...');
+    } else if (isDrawingAll) { // 전체 추첨 모드일 때 룰렛 메시지 변경
+      setDisplayPrize('전체 추첨 완료!');
+    }
+
+    return () => clearInterval(spinInterval);
+  }, [isSpinning, prizes, winningPrizeName, onSpinComplete, displayPrize, isDrawingAll]);
+
+  return (
+    <div className="flex flex-col items-center justify-center space-y-6">
+      <div
+        className={`relative w-64 h-64 md:w-80 md:h-80 bg-gradient-to-br from-yellow-200 to-pink-300 rounded-full flex items-center justify-center shadow-inner-xl border-8 border-purple-400 overflow-hidden ${
+          isSpinning && !isDrawingAll ? 'animate-spin-fast' : '' // 전체 추첨 모드일 때는 스핀 애니메이션 적용 안함
+        }`}
+      >
+        <div className="absolute inset-0 bg-white rounded-full opacity-30 animate-pulse-slow"></div>
+        <div className="relative text-center text-3xl md:text-4xl font-extrabold text-purple-800 p-4 bg-white rounded-full shadow-lg border-4 border-yellow-300 z-10 w-48 h-48 md:w-60 md:h-60 flex items-center justify-center">
+          {isSpinning && !isDrawingAll ? (
+            <CircleDashed className="animate-spin text-purple-500" size={60} />
+          ) : (
+            displayPrize
+          )}
+        </div>
+        <div className="absolute -top-6 right-1/2 translate-x-1/2 transform rotate-45 text-yellow-500 z-20">
+          <Sparkles size={48} fill="currentColor" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 추첨 결과 및 참가자 리스트 컴포넌트
+const ResultsDisplay = ({
+  results,
+  currentParticipantIndex,
+  onDrawParticipant,
+  onDrawAllParticipants,
+  isDrawComplete,
+  isSpinningRoulette,
+  isDrawingAll,
+  groupedResults,
+  onRestart, // 새로 추가된 onRestart prop
+  playClickSound
+}) => {
+  return (
+    <div className="bg-white p-6 rounded-3xl shadow-xl border-4 border-blue-200 max-w-md mx-auto">
+      <h2 className="text-3xl font-bold text-center text-blue-500 mb-6 flex items-center justify-center gap-2">
+        <Heart className="text-pink-400" size={32} />
+        추첨 결과
+        <Heart className="text-pink-400" size={32} />
+      </h2>
+      {isDrawComplete && isDrawingAll ? ( // 전체 추첨이 완료되면 상품별로 그룹화된 결과를 보여줍니다.
+        <div className="space-y-4">
+          <h3 className="text-2xl font-bold text-center text-purple-600 mb-4">✨ 전체 추첨 결과 요약 ✨</h3>
+          {Object.entries(groupedResults).map(([prizeName, participants]) => (
+            <div key={prizeName} className="p-3 bg-blue-50 rounded-xl shadow-sm border-2 border-blue-100">
+              <span className="font-bold text-purple-700 text-xl">{prizeName}: </span>
+              <span className="text-blue-800 text-lg">{participants.map(p => `${p}번`).join(', ')}</span>
+            </div>
+          ))}
+        </div>
+      ) : ( // 그렇지 않으면 기존의 참가자별 리스트를 보여줍니다.
+        <ul className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+          {results.map((result, index) => (
+            <li
+              key={result.participantNumber}
+              className={`flex items-center justify-between p-3 rounded-xl shadow-md border-2 ${
+                // 전체 추첨 모드에서는 현재 인덱스 강조하지 않음
+                !isDrawingAll && index === currentParticipantIndex && !isDrawComplete ? 'bg-yellow-100 border-yellow-300 animate-pulse' : 'bg-blue-50 border-blue-100'
+              }`}
+            >
+              <span className="font-semibold text-blue-800 text-lg">
+                참가자 {result.participantNumber}님:
+              </span>
+              <span className="font-bold text-purple-700 text-xl">
+                {/* 전체 추첨 모드에서는 항상 prizeWon을 표시, 개별 추첨에서는 revealed 상태에 따라 표시 */}
+                {(isDrawingAll || result.revealed) ? result.prizeWon : (index === currentParticipantIndex && isSpinningRoulette ? '추첨 중...' : '대기 중...')}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* 추첨 진행 중이 아닐 때만 버튼을 보여줍니다. */}
+      {!isDrawComplete && (
+        <div className="mt-6 flex flex-col gap-4">
+          <button
+            onClick={() => {
+              onDrawParticipant(currentParticipantIndex);
+              playClickSound();
+            }}
+            disabled={isSpinningRoulette || isDrawingAll}
+            className={`w-full py-3 px-4 text-white text-xl font-bold rounded-full shadow-lg transition-colors duration-200 transform hover:scale-105 ${
+              isSpinningRoulette || isDrawingAll ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-400 hover:bg-purple-500'
+            }`}
+          >
+            {isSpinningRoulette && !isDrawingAll ? (
+              <>
+                <CircleDashed className="inline-block mr-2 animate-spin" size={24} />
+                추첨 중...
+              </>
+            ) : (
+              `참가자 ${results[currentParticipantIndex]?.participantNumber || ''}님 추첨하기`
+            )}
+          </button>
+          <button
+            onClick={() => {
+              onDrawAllParticipants();
+              playClickSound();
+            }}
+            disabled={isSpinningRoulette || isDrawingAll}
+            className={`w-full py-3 px-4 text-white text-xl font-bold rounded-full shadow-lg transition-colors duration-200 transform hover:scale-105 ${
+              isSpinningRoulette || isDrawingAll ? 'bg-gray-400 cursor-not-allowed' : 'bg-pink-500 hover:bg-pink-600'
+            }`}
+          >
+            {isDrawingAll ? (
+              <>
+                <CircleDashed className="inline-block mr-2 animate-spin" size={24} />
+                전체 추첨 중...
+              </>
+            ) : (
+              '전체 추첨하기'
+            )}
+          </button>
+        </div>
+      )}
+      {isDrawComplete && (
+        <div className="mt-6 text-center">
+          <p className="text-2xl font-extrabold text-green-600 animate-bounce flex items-center justify-center gap-2 mb-4">
+            <Sparkles className="text-yellow-400" size={28} />
+            모든 추첨이 완료되었습니다!
+            <Sparkles className="text-yellow-400" size={28} />
+          </p>
+          <button
+            onClick={() => {
+              onRestart();
+              playClickSound();
+            }}
+            className="w-full py-3 px-4 bg-blue-500 text-white text-xl font-bold rounded-full shadow-lg hover:bg-blue-600 transition-colors duration-200 transform hover:scale-105"
+          >
+            다시 시작하기
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const App = () => {
+  const [appState, setAppState] = useState('input'); // 'input' (입력), 'drawing' (추첨 진행)
+  const [products, setProducts] = useState([]);
+  const [totalParticipants, setTotalParticipants] = useState(0);
+  const [drawResults, setDrawResults] = useState([]); // { participantNumber, prizeWon, revealed } 형태의 추첨 결과
+  const [prizePool, setPrizePool] = useState([]); // 모든 상품을 펼쳐놓은 리스트
+  const [currentParticipantIndex, setCurrentParticipantIndex] = useState(0);
+  const [winningPrizeForRoulette, setWinningPrizeForRoulette] = useState('');
+  const [isSpinningRoulette, setIsSpinningRoulette] = useState(false);
+  const [isDrawingAll, setIsDrawingAll] = useState(false); // 전체 추첨 모드 상태 추가
+  const [groupedResults, setGroupedResults] = useState({}); // 상품별 그룹화된 결과 상태 추가
+
+  // Tone.js 사운드 인스턴스
+  const clickSynth = useRef(null);
+  const spinOscillator = useRef(null);
+  const stopSynth = useRef(null);
+  const fireworksSynth = useRef(null); // 폭죽 사운드 추가
+
+  // 사운드 초기화 및 AudioContext 시작 (첫 사용자 상호작용 시)
+  useEffect(() => {
+    clickSynth.current = new Tone.MembraneSynth().toDestination();
+    spinOscillator.current = new Tone.Oscillator('C5', 'sawtooth').toDestination();
+    spinOscillator.current.volume.value = -20; // 스핀 사운드 볼륨 조절
+    stopSynth.current = new Tone.Synth({
+      oscillator: { type: "sine" },
+      envelope: {
+        attack: 0.01,
+        decay: 0.5,
+        sustain: 0.0,
+        release: 0.5,
+      }
+    }).toDestination();
+    fireworksSynth.current = new Tone.NoiseSynth({ // 폭죽 사운드용 노이즈 신디사이저
+      noise: { type: "white" },
+      envelope: {
+        attack: 0.001,
+        decay: 0.6,
+        sustain: 0.0,
+        release: 0.2
+      }
+    }).toDestination();
+
+    // 사용자 상호작용 (클릭 또는 터치) 시 AudioContext 시작
+    const handleUserInteraction = () => {
+      startAudioContext();
+      document.body.removeEventListener('click', handleUserInteraction);
+      document.body.removeEventListener('touchstart', handleUserInteraction);
+    };
+    document.body.addEventListener('click', handleUserInteraction, { once: true });
+    document.body.addEventListener('touchstart', handleUserInteraction, { once: true });
+
+
+    return () => {
+      clickSynth.current?.dispose();
+      spinOscillator.current?.dispose();
+      stopSynth.current?.dispose();
+      fireworksSynth.current?.dispose(); // 폭죽 사운드 정리
+      document.body.removeEventListener('click', handleUserInteraction);
+      document.body.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, []);
+
+  // 사운드 재생 함수들
+  const playClickSound = () => {
+    if (Tone.context.state === 'running') {
+      clickSynth.current.triggerAttackRelease('C4', '8n');
+    }
+  };
+
+  const startSpinSound = () => {
+    if (Tone.context.state === 'running') {
+      spinOscillator.current.start();
+    }
+  };
+
+  const stopSpinSound = () => {
+    if (Tone.context.state === 'running') {
+      spinOscillator.current.stop();
+    }
+  };
+
+  const playStopSound = () => {
+    if (Tone.context.state === 'running') {
+      stopSynth.current.triggerAttackRelease('G4', '4n');
+    }
+  };
+
+  const playFireworksSound = () => {
+    if (Tone.context.state === 'running') {
+      fireworksSynth.current.triggerAttackRelease('8n', '+0.1');
+      setTimeout(() => fireworksSynth.current.triggerAttackRelease('8n', '+0.2'), 100);
+      setTimeout(() => fireworksSynth.current.triggerAttackRelease('8n', '+0.3'), 200);
+    }
+  };
+
+
+  // 추첨 시작 핸들러
+  const handleStartDraw = (inputProducts, inputTotalParticipants) => {
+    setProducts(inputProducts);
+    setTotalParticipants(inputTotalParticipants);
+
+    const newPrizePool = inputProducts.flatMap(p =>
+      Array(p.quantity).fill(p.name)
+    );
+
+    const shuffledPrizePool = [...newPrizePool];
+    for (let i = shuffledPrizePool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledPrizePool[i], shuffledPrizePool[j]] = [shuffledPrizePool[j], shuffledPrizePool[i]];
+    }
+    setPrizePool(shuffledPrizePool);
+
+    const initialResults = Array.from({ length: inputTotalParticipants }, (_, i) => ({
+      participantNumber: i + 1,
+      // 상품 풀의 인덱스가 유효하면 상품을 할당, 아니면 '꽝'으로 할당
+      prizeWon: shuffledPrizePool[i] !== undefined ? shuffledPrizePool[i] : '꽝',
+      revealed: false,
+    }));
+    setDrawResults(initialResults);
+
+    setAppState('drawing');
+    setCurrentParticipantIndex(0);
+    setIsSpinningRoulette(false);
+    setIsDrawingAll(false); // 새로운 추첨 시작 시 전체 추첨 모드 비활성화
+    setGroupedResults({}); // 새로운 추첨 시작 시 그룹화된 결과 초기화
+    setWinningPrizeForRoulette(initialResults[0]?.prizeWon || '꽝'); // 첫 참가자의 상품이 '꽝'일 수 있음
+  };
+
+  // 특정 참가자 추첨 시작 핸들러
+  const handleDrawParticipant = (index) => {
+    if (isSpinningRoulette || index !== currentParticipantIndex || isDrawingAll) return; // 전체 추첨 중일 때 개별 추첨 방지
+
+    setIsSpinningRoulette(true);
+    startSpinSound(); // 스핀 사운드 시작
+    setWinningPrizeForRoulette(drawResults[index]?.prizeWon || '꽝');
+  };
+
+  // 전체 추첨 시작 핸들러
+  const handleDrawAllParticipants = () => {
+    if (isSpinningRoulette || isDrawingAll || totalParticipants === 0) return; // 이미 추첨 중이거나 참가자가 없으면 방지
+
+    setIsDrawingAll(true);
+    playFireworksSound(); // 전체 추첨 시작 시 폭죽 사운드 재생
+
+    // 이미 추첨된 참가자의 결과는 유지하고, 아직 추첨되지 않은 참가자들만 업데이트
+    const updatedResults = drawResults.map((result, index) => {
+      if (!result.revealed) { // 아직 공개되지 않은 결과만 업데이트
+        return {
+          ...result,
+          revealed: true,
+          // 상품은 이미 handleStartDraw에서 할당되었으므로 그대로 사용
+        };
+      }
+      return result;
+    });
+    setDrawResults(updatedResults);
+
+    // 결과를 상품별로 그룹화 (업데이트된 결과 사용)
+    const newGroupedResults = updatedResults.reduce((acc, current) => {
+      const prize = current.prizeWon;
+      if (!acc[prize]) {
+        acc[prize] = [];
+      }
+      acc[prize].push(current.participantNumber);
+      return acc;
+    }, {});
+    setGroupedResults(newGroupedResults); // 그룹화된 결과 상태 업데이트
+
+    // 모든 추첨이 완료되었음을 표시
+    setCurrentParticipantIndex(totalParticipants);
+    setIsSpinningRoulette(false); // 룰렛은 스핀하지 않음
+    // isDrawingAll 상태는 ResultsDisplay에서 완료 메시지를 보여준 후 종료
+  };
+
+  // 룰렛 스핀 완료 핸들러 (개별 추첨 시에만 사용)
+  const handleSpinComplete = () => {
+    setIsSpinningRoulette(false);
+    stopSpinSound(); // 스핀 사운드 중지
+    playStopSound(); // 멈춤 사운드 재생
+
+    setDrawResults(prevResults =>
+      prevResults.map((res, idx) =>
+        idx === currentParticipantIndex ? { ...res, revealed: true } : res
+      )
+    );
+
+    // 다음 참가자로 자동 이동
+    setTimeout(() => {
+      const nextIndex = currentParticipantIndex + 1;
+      if (nextIndex < totalParticipants) {
+        // 개별 추첨이므로 다음 스핀을 자동으로 시작하지 않음
+        setCurrentParticipantIndex(nextIndex);
+        setWinningPrizeForRoulette(drawResults[nextIndex]?.prizeWon || '꽝');
+      } else {
+        // 모든 추첨 완료 (개별 추첨 모드 종료)
+        setCurrentParticipantIndex(totalParticipants);
+        setIsDrawingAll(false); // 안전을 위해 전체 추첨 모드 종료
+      }
+    }, 1000); // 1초 대기 후 다음 단계 진행
+  };
+
+  // 앱을 초기 상태로 되돌리는 함수
+  const handleRestart = () => {
+    setAppState('input');
+    setProducts([]);
+    setTotalParticipants(1);
+    setDrawResults([]);
+    setPrizePool([]);
+    setCurrentParticipantIndex(0);
+    setWinningPrizeForRoulette('');
+    setIsSpinningRoulette(false);
+    setIsDrawingAll(false);
+    setGroupedResults({});
+  };
+
+  const isDrawComplete = currentParticipantIndex >= totalParticipants;
+
+  // 배경 이모지 위치를 위한 배열
+  const emojis = [
+    { emoji: '🥁', top: '10%', left: '5%', size: '3em' },
+    { emoji: '🎆', top: '20%', right: '8%', size: '3.5em' },
+    { emoji: '🥁', bottom: '15%', left: '15%', size: '2.8em' },
+    { emoji: '🎆', top: '5%', left: '30%', size: '3.2em' },
+    { emoji: '🥁', bottom: '5%', right: '20%', size: '3em' },
+    { emoji: '🎆', top: '40%', right: '2%', size: '3.8em' },
+    { emoji: '🥁', top: '50%', left: '10%', size: '3.5em' },
+    { emoji: '🎆', bottom: '25%', left: '50%', size: '3em' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 to-purple-200 flex flex-col items-center justify-center p-4 text-gray-800 font-cute relative overflow-hidden"> {/* 모든 글씨체 통일 및 이모지 배치를 위한 relative, overflow-hidden */}
+      <style>
+        {`
+        /* 구글 폰트 임포트: Cute Font */
+        @import url('https://fonts.googleapis.com/css2?family=Cute+Font&display=swap');
+        .font-cute {
+          font-family: 'Cute Font', cursive;
         }
-    </script>
 
-</body>
-</html>
+        /* 룰렛 빠른 회전 애니메이션 */
+        @keyframes spin-fast {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        /* 룰렛 내부 요소 느린 맥박 애니메이션 */
+        @keyframes pulse-slow {
+          0%, 100% { transform: scale(1); opacity: 0.3; }
+          50% { transform: scale(1.05); opacity: 0.5; }
+        }
+        /* 페이드 인 애니메이션 */
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* 바운스 애니메이션 */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .animate-spin-fast {
+          animation: spin-fast 0.5s linear infinite;
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 2s infinite ease-in-out;
+        }
+        .animate-fade-in {
+            animation: fade-in 1s ease-out forwards;
+        }
+        .animate-bounce {
+            animation: bounce 0.8s infinite alternate;
+        }
+
+        /* 커스텀 스크롤바 스타일 */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e0aaff; /* 연보라색 */
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #c77dff; /* 진한 연보라색 */
+        }
+
+        /* 배경 이모지 애니메이션 */
+        @keyframes float-emoji {
+            0% { transform: translateY(0px) rotate(0deg); opacity: 0.8; }
+            50% { transform: translateY(-10px) rotate(5deg); opacity: 1; }
+            100% { transform: translateY(0px) rotate(0deg); opacity: 0.8; }
+        }
+        .emoji-background {
+            position: absolute;
+            animation: float-emoji 5s ease-in-out infinite alternate;
+            pointer-events: none; /* 이모지가 클릭을 방해하지 않도록 */
+            z-index: 0; /* 배경 요소로 */
+        }
+        `}
+      </style>
+
+      {/* 배경 이모지들 */}
+      {emojis.map((e, i) => (
+        <span
+          key={i}
+          className="emoji-background"
+          style={{ top: e.top, left: e.left, right: e.right, fontSize: e.size, animationDelay: `${i * 0.5}s` }}
+        >
+          {e.emoji}
+        </span>
+      ))}
+
+      {/* 앱 제목 */}
+      <h1 className="text-5xl font-extrabold text-white text-center mb-8 drop-shadow-lg animate-fade-in font-cute z-10">
+        ✨ 행운의 룰렛 뽑기! ✨
+      </h1>
+
+      {appState === 'input' ? (
+        // 초기 입력 폼
+        <InputForm onStartDraw={handleStartDraw} playClickSound={playClickSound} />
+      ) : (
+        // 추첨 진행 화면
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-center gap-8 md:gap-12 w-full max-w-6xl z-10">
+          <div className="flex-1 min-w-[300px] flex items-center justify-center order-2 md:order-1">
+            <Roulette
+              prizes={prizePool}
+              winningPrizeName={winningPrizeForRoulette}
+              isSpinning={isSpinningRoulette}
+              onSpinComplete={handleSpinComplete}
+              isDrawingAll={isDrawingAll}
+            />
+          </div>
+          <div className="flex-1 min-w-[300px] order-1 md:order-2">
+            <ResultsDisplay
+              results={drawResults}
+              currentParticipantIndex={currentParticipantIndex}
+              onDrawParticipant={handleDrawParticipant}
+              onDrawAllParticipants={handleDrawAllParticipants}
+              isDrawComplete={isDrawComplete}
+              isSpinningRoulette={isSpinningRoulette}
+              isDrawingAll={isDrawingAll}
+              groupedResults={groupedResults}
+              onRestart={handleRestart} // onRestart prop 전달
+              playClickSound={playClickSound}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
